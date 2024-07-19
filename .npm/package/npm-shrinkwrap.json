@@ -1,0 +1,10 @@
+{
+  "lockfileVersion": 1,
+  "dependencies": {
+    "idb": {
+      "version": "8.0.0",
+      "resolved": "https://registry.npmjs.org/idb/-/idb-8.0.0.tgz",
+      "integrity": "sha512-l//qvlAKGmQO31Qn7xdzagVPPaHTxXx199MhrAFuVBTPqydcPYBWjkrbv4Y0ktB+GmWOiwHl237UUOrLmQxLvw=="
+    }
+  }
+}
