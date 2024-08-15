@@ -66,7 +66,7 @@ By default, the package auto syncs when the user comes back online. This include
 1. Replaying queued methods
 2. Removing offline data for each collection that no longer belongs because it doesn't match the `.keep` filter you've set
 
-Sync is handled in a last-write-wins fashion. If there are any errors during auto sync, they will be made available in the `handleSyncErrors` function. See [Configuring](#configuring-optional) for more details on how to customize this.
+The benefit of this sequential-replay syncing strategy is any business logic contained in your methods will be respected. For example, if a user makes changes to a document but loses permission to it while offline, when they come back online, that permission will be respected when the attempted replay occurs. If there are any errors during auto sync, they will be made available in the `handleSyncErrors` function. You can use it to make your user aware that their changes failed. See [Configuring](#configuring-optional) for more details on how to customize this.
 
 To know when an auto sync is processing, you can use `isSyncing()` which is a reactive variable.
 
