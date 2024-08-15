@@ -1,3 +1,4 @@
+import './lib/users';
 import './lib/load';
 import './lib/ddp';
 import { isSyncing } from './lib/sync';

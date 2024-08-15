@@ -22,6 +22,9 @@ Things.keep({ text: 'stuff' }, { sort: { createdAt: 1 }, limit: 2 });
 const Notes = new Mongo.Collection('notes');
 Notes.keep({}, { limit: 2 });
 
+const Orders = new Mongo.Collection('orders', { idGeneration: 'MONGO' });
+Orders.keep();
+
 const Items = new Mongo.Collection('items');
 Items.keep({}, { sort: { updatedAt: 1 }, limit: 2 });
 
@@ -35,6 +38,10 @@ if (Meteor.isServer) {
 
   Meteor.publish('notes', function() {
     return Notes.find({});
+  });
+
+  Meteor.publish('orders', function() {
+    return Orders.find({});
   });
 
   Meteor.publish('items', function() {
@@ -51,6 +58,9 @@ const resetThings = async () => {
 }
 const resetNotes = async () => {
   return Notes.removeAsync({});
+}
+const resetOrders = async () => {
+  return Orders.removeAsync({});
 }
 const resetItems = async () => {
   return Items.removeAsync({});
@@ -79,6 +89,18 @@ const removeNote = async ({ _id, text }) => {
   return Notes.removeAsync(_id);
 }
 
+const insertOrder = async ({ text }) => {
+  return Orders.insertAsync({ text, createdAt: new Date(), updatedAt: new Date() });
+}
+
+const updateOrder = async ({ _id, text }) => {
+  return Orders.updateAsync(_id, { $set: { text,  createdAt: new Date(), updatedAt: new Date() }});
+}
+
+const removeOrder = async ({ _id, text }) => {
+  return Orders.removeAsync(_id);
+}
+
 const insertItem = async ({ text }) => {
   return Items.insertAsync({ text, createdAt: new Date(), updatedAt: new Date() });
 }
@@ -95,10 +117,10 @@ const updateBook = async ({ _id, title }) => {
   return Books.updateAsync(_id, { $set: { title,  createdAt: new Date(), updatedAt: new Date() }});
 }
 
-Meteor.methods({ insertThing, updateThing, insertNote, updateNote, removeNote, insertItem, updateItem, insertBook, updateBook });
+Meteor.methods({ insertThing, updateThing, insertNote, updateNote, removeNote, insertOrder, updateOrder, removeOrder, insertItem, updateItem, insertBook, updateBook });
 
 if (Meteor.isServer) {
-  Meteor.methods({ resetThings, resetNotes, resetItems, resetBooks })
+  Meteor.methods({ resetThings, resetNotes, resetOrders, resetItems, resetBooks })
 }
 
 // Client only tests
@@ -448,6 +470,51 @@ if (Meteor.isClient) {
     test.isTrue(Notes.find().fetch().map(n => n.text).includes('another'))
 
     await Notes.clear();
+
+    sub.stop();
+    comp.stop();
+  });
+
+  Tinytest.addAsync('replay - add, change, remove (Mongo.ObjectID)', async (test) => {
+    await wait(200);
+    await Meteor.callAsync('resetOrders');
+    await Orders.clear();
+
+    let sub;
+    const comp = Tracker.autorun(computation => {
+      sub = Meteor.subscribe('orders');
+    });
+
+
+    const order1 = await Meteor.callAsync('insertOrder', {text: 'hi'});
+    const order2 = await Meteor.callAsync('insertOrder', {text: 'hi'});
+    const order3 = await Meteor.callAsync('insertOrder', {text: 'to remove'});
+
+    Meteor.disconnect();
+    await wait(100);
+    const order4 = await Meteor.applyAsync('insertOrder', [{text: 'another'}], { ...applyOptions, noRetry: true });
+    await queueMethod('insertOrder', {text: 'another'})
+    await wait(200);
+    await Meteor.applyAsync('updateOrder', [{_id: order1, text: 'hello'}], { ...applyOptions, noRetry: true });
+    await queueMethod('updateOrder', {_id: order1, text: 'hello'})
+    await wait(200);
+    await Meteor.applyAsync('removeOrder', [{_id: order3 }], { ...applyOptions, noRetry: true });
+    await queueMethod('removeOrder', {_id: order3 })
+    await wait(100);
+
+    Meteor.reconnect();
+
+    await wait(10);
+
+    const orders = await getAll('orders');
+
+    test.isFalse(orders.map(o => o._id).includes(order4.toString())) // it should be swapped with the result of the queued method
+    test.isTrue(!orders.map(o=> o._id).includes(order1.toString()))
+
+    test.equal(Orders.find().fetch().length, 3)
+    test.isTrue(Orders.find().fetch().map(o => o.text).includes('another'))
+
+    await Orders.clear();
 
     sub.stop();
     comp.stop();

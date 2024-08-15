@@ -1,6 +1,6 @@
 Package.describe({
   name: 'jam:offline',
-  version: '0.1.2',
+  version: '0.2.0',
   summary: 'An easy way to give your Meteor app offline capabilities and make it feel instant',
   git: 'https://github.com/jamauro/offline',
   documentation: 'README.md'
@@ -15,8 +15,8 @@ Package.onUse(function(api) {
   api.use('ecmascript');
   api.use('mongo');
   api.use('check');
+  api.use('mongo-id', 'client');
   api.use('tracker', 'client');
-  api.use('accounts-base', { weak: true });
   api.use('zodern:types@1.0.13');
   api.mainModule('client.js', 'client');
   api.mainModule('server.js', 'server');

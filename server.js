@@ -1,4 +1,5 @@
 import './lib/mongo';
+import './lib/users';
 import { PLACEHOLDER_USER_ID } from './lib/utils/shared';
 import { Offline } from './lib/config';
 import './lib/method';
@@ -13,8 +14,6 @@ const clearAll = noop;
 const originalUserId = Meteor.userId;
 Meteor.userId = () => PLACEHOLDER_USER_ID;
 
-Meteor.startup(() => {
-  Meteor.userId = originalUserId;
-});
+Meteor.startup(() => Meteor.userId = originalUserId);
 
 export { Offline, queueMethod, clearAll }

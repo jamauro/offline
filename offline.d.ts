@@ -4,14 +4,13 @@ declare module 'meteor/mongo' {
       /**
        * Keeps a filter, sort, and limit configuration for the MongoDB collection.
        *
-       * @param filter - The filter object to keep.
+       * @param filter - The optional filter object to keep.
        * @param options - Optional settings.
        * @param options.sort - The sort order. Defaults to Offline.config.sort.
        * @param options.limit - The limit of documents. Defaults to Offline.config.limit.
-       * @throws {Error} Throws an error if no filter is provided.
        */
       keep(
-        filter: Record<string, any>,
+        filter?: Record<string, any>,
         options?: {
           sort?: Record<string, any>,
           limit?: number
