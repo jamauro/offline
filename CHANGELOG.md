@@ -1,3 +1,6 @@
+## 0.2.1
+* fix: preserve the `_id` when it's preset on an `insert` or `upsert`
+
 ## 0.2.0
 * feat: persist `Meteor.users` collection by default so `Meteor.user()` works as expected when offline
 * feat: support `Mongo.ObjectID`

@@ -1,6 +1,7 @@
 // Import Tinytest from the tinytest Meteor package.
 import { Tinytest } from 'meteor/tinytest';
 import { Mongo } from 'meteor/mongo';
+import { Random } from 'meteor/random';
 import { Tracker } from 'meteor/tracker';
 import { offlineCollections } from './lib/mongo';
 import { Offline, clearAll, queueMethod } from 'meteor/jam:offline';
@@ -22,6 +23,9 @@ Things.keep({ text: 'stuff' }, { sort: { createdAt: 1 }, limit: 2 });
 const Notes = new Mongo.Collection('notes');
 Notes.keep({}, { limit: 2 });
 
+const Dogs = new Mongo.Collection('dogs');
+Dogs.keep();
+
 const Orders = new Mongo.Collection('orders', { idGeneration: 'MONGO' });
 Orders.keep();
 
@@ -38,6 +42,10 @@ if (Meteor.isServer) {
 
   Meteor.publish('notes', function() {
     return Notes.find({});
+  });
+
+  Meteor.publish('dogs', function() {
+    return Dogs.find({});
   });
 
   Meteor.publish('orders', function() {
@@ -58,6 +66,9 @@ const resetThings = async () => {
 }
 const resetNotes = async () => {
   return Notes.removeAsync({});
+}
+const resetDogs = async () => {
+  return Dogs.removeAsync({});
 }
 const resetOrders = async () => {
   return Orders.removeAsync({});
@@ -89,6 +100,18 @@ const removeNote = async ({ _id, text }) => {
   return Notes.removeAsync(_id);
 }
 
+const insertDog = async ({ text }) => {
+  return Dogs.insertAsync({ text, createdAt: new Date(), updatedAt: new Date() });
+}
+
+const upsertDog = async ({ _id, text }) => {
+  return Dogs.upsertAsync(_id, { text, createdAt: new Date(), updatedAt: new Date() });
+}
+
+const updateDog = async ({ _id, text }) => {
+  return Dogs.updateAsync(_id, { $set: { text,  createdAt: new Date(), updatedAt: new Date() }});
+}
+
 const insertOrder = async ({ text }) => {
   return Orders.insertAsync({ text, createdAt: new Date(), updatedAt: new Date() });
 }
@@ -117,10 +140,10 @@ const updateBook = async ({ _id, title }) => {
   return Books.updateAsync(_id, { $set: { title,  createdAt: new Date(), updatedAt: new Date() }});
 }
 
-Meteor.methods({ insertThing, updateThing, insertNote, updateNote, removeNote, insertOrder, updateOrder, removeOrder, insertItem, updateItem, insertBook, updateBook });
+Meteor.methods({ insertThing, updateThing, insertNote, updateNote, removeNote, insertDog, upsertDog, updateDog, insertOrder, updateOrder, removeOrder, insertItem, updateItem, insertBook, updateBook });
 
 if (Meteor.isServer) {
-  Meteor.methods({ resetThings, resetNotes, resetOrders, resetItems, resetBooks })
+  Meteor.methods({ resetThings, resetNotes, resetDogs, resetOrders, resetItems, resetBooks })
 }
 
 // Client only tests
@@ -407,7 +430,7 @@ if (Meteor.isClient) {
     await wait(100);
     const note3 = await Meteor.applyAsync('insertNote', [{text: 'more'}], { ...applyOptions, noRetry: true });
     await queueMethod('insertNote', {text: 'more'})
-    await wait(200);
+    await wait(100);
     await Meteor.applyAsync('updateNote', [{_id: note3, text: 'hello'}], { ...applyOptions, noRetry: true });
     await queueMethod('updateNote', {_id: note3, text: 'hello'})
     await wait(100);
@@ -425,6 +448,47 @@ if (Meteor.isClient) {
     test.isTrue(Notes.find().fetch().map(n => n.text).includes('hello'))
 
     await Notes.clear();
+
+    sub.stop();
+    comp.stop();
+  });
+
+  Tinytest.addAsync('replay - add and change same doc with upsert to preserve _id', async (test) => {
+    await wait(200);
+    await Meteor.callAsync('resetDogs');
+    await Dogs.clear();
+
+    let sub;
+    const comp = Tracker.autorun(computation => {
+      sub = Meteor.subscribe('dogs');
+    });
+
+    const dog1 = await Meteor.callAsync('insertDog', {text: 'hi'});
+    const dog2 = await Meteor.callAsync('insertDog', {text: 'hi'});
+
+    Meteor.disconnect();
+    await wait(100);
+    const dog3 = Random.id();
+    await Meteor.applyAsync('upsertDog', [{_id: dog3, text: 'more'}], { ...applyOptions, noRetry: true });
+    await queueMethod('upsertDog', {_id: dog3, text: 'more'})
+
+    await wait(200);
+    await Meteor.applyAsync('updateDog', [{_id: dog3, text: 'hello'}], { ...applyOptions, noRetry: true });
+    await queueMethod('updateDog', {_id: dog3, text: 'hello'})
+    await wait(100);
+
+    Meteor.reconnect();
+
+    await wait(10);
+
+    const dogs = await getAll('dogs');
+
+    test.isTrue(dogs.map(d => d._id).includes(dog3)) // it should be preserved
+
+    test.equal(Dogs.find().fetch().length, 3)
+    test.isTrue(Dogs.find().fetch().map(d => d.text).includes('hello'))
+
+    await Dogs.clear();
 
     sub.stop();
     comp.stop();
