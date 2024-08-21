@@ -1,3 +1,6 @@
+## 0.2.2
+* fix: ensure indexedDB stores remain in sync when adding / removing collections
+
 ## 0.2.1
 * fix: preserve the `_id` when it's preset on an `insert` or `upsert`
 
