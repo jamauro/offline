@@ -26,6 +26,9 @@ Notes.keep({}, { limit: 2 });
 const Dogs = new Mongo.Collection('dogs');
 Dogs.keep();
 
+const Cars = new Mongo.Collection('cars');
+Cars.keep();
+
 const Orders = new Mongo.Collection('orders', { idGeneration: 'MONGO' });
 Orders.keep();
 
@@ -46,6 +49,10 @@ if (Meteor.isServer) {
 
   Meteor.publish('dogs', function() {
     return Dogs.find({});
+  });
+
+  Meteor.publish('cars', function() {
+    return Cars.find({});
   });
 
   Meteor.publish('orders', function() {
@@ -69,6 +76,9 @@ const resetNotes = async () => {
 }
 const resetDogs = async () => {
   return Dogs.removeAsync({});
+}
+const resetCars = async () => {
+  return Cars.removeAsync({});
 }
 const resetOrders = async () => {
   return Orders.removeAsync({});
@@ -112,6 +122,10 @@ const updateDog = async ({ _id, text }) => {
   return Dogs.updateAsync(_id, { $set: { text,  createdAt: new Date(), updatedAt: new Date() }});
 }
 
+const insertCar = async ({ text }) => {
+  return Cars.insertAsync({ text, createdAt: new Date(), updatedAt: new Date() });
+}
+
 const insertOrder = async ({ text }) => {
   return Orders.insertAsync({ text, createdAt: new Date(), updatedAt: new Date() });
 }
@@ -140,10 +154,10 @@ const updateBook = async ({ _id, title }) => {
   return Books.updateAsync(_id, { $set: { title,  createdAt: new Date(), updatedAt: new Date() }});
 }
 
-Meteor.methods({ insertThing, updateThing, insertNote, updateNote, removeNote, insertDog, upsertDog, updateDog, insertOrder, updateOrder, removeOrder, insertItem, updateItem, insertBook, updateBook });
+Meteor.methods({ insertThing, updateThing, insertNote, updateNote, removeNote, insertDog, upsertDog, updateDog, insertCar, insertOrder, updateOrder, removeOrder, insertItem, updateItem, insertBook, updateBook });
 
 if (Meteor.isServer) {
-  Meteor.methods({ resetThings, resetNotes, resetDogs, resetOrders, resetItems, resetBooks })
+  Meteor.methods({ resetThings, resetNotes, resetDogs, resetCars, resetOrders, resetItems, resetBooks })
 }
 
 // Client only tests
@@ -610,6 +624,38 @@ if (Meteor.isClient) {
     for (const [key, value] of originalOfflineCollections) {
       offlineCollections.set(key, value);
     }
+  });
+
+  Tinytest.addAsync('methods are not queued when queueMethod is not used', async (test) => {
+    await wait(200);
+    await Cars.clear();
+    await Meteor.callAsync('resetCars');
+
+    let sub;
+    const comp = Tracker.autorun(() => {
+      sub = Meteor.subscribe('cars');
+    });
+
+    await wait(100);
+    Meteor.disconnect();
+    await wait(100);
+    await Meteor.applyAsync('insertCar', [{text: 'hi'}], { ...applyOptions, noRetry: true });
+    await wait(100);
+
+    const cars = await getAll('cars')
+    test.equal(cars.length, 1);
+
+    const methods = await getAll('methods');
+    test.equal(methods.length, 0);
+
+    await wait(100);
+    Meteor.reconnect();
+    await wait(100);
+
+    await Cars.clear();
+
+    sub.stop();
+    comp.stop();
   });
 }
 

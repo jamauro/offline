@@ -1,3 +1,6 @@
+## 0.2.3
+* fix: queueing method unintentionally
+
 ## 0.2.2
 * fix: ensure indexedDB stores remain in sync when adding / removing collections
 
