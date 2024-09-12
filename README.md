@@ -64,9 +64,11 @@ where name is the method's name and the arguments are what the method expects. Y
 By default, the package auto syncs when the user comes back online. This includes:
 
 1. Replaying queued methods
-2. Removing offline data for each collection that no longer belongs because it doesn't match the `.keep` filter you've set
+2. Removing offline data for each collection that no longer belongs because it doesn't match the configured `filter` or the collection's `.keep` filter
 
 The benefit of this sequential-replay syncing strategy is any business logic contained in your methods will be respected. For example, if a user makes changes to a document but loses permission to it while offline, when they come back online, that permission will be respected when the attempted replay occurs. If there are any errors during auto sync, they will be made available in the `handleSyncErrors` function. You can use it to make your user aware that their changes failed. See [Configuring](#configuring-optional) for more details on how to customize this.
+
+When reconciling with the server, this package currently assumes that you'll use soft deletes so that it can remove any documents from the offline data as needed. If your app doesn't already employ a soft delete mechanism, check out the [jam:soft-delete](https://github.com/jamauro/soft-delete) package to make this easy. If you're using something other than `deleted` as the flag name for your soft deletes, be sure to configure `filter` appropriately. See [Configuring](#configuring-optional) for more details.
 
 To know when an auto sync is processing, you can use `isSyncing()` which is a reactive variable.
 
@@ -81,12 +83,12 @@ If you prefer not to have the behavior provided by auto sync, be sure to configu
 I think it would be great to have better support for custom syncing. If you have ideas here, let me know. At this time, I'm not sure what primitives would be most useful for you.
 
 ## Configuring (optional)
-If you like the defaults, then you won't need to configure anything. But there is some flexibility in how you use this package. You may want to pay special attention to `handleSyncErrors` to customize the experience for your users.
+If you like the defaults, then you won't need to configure anything. But there is some flexibility in how you use this package. You may want to pay special attention to `filter` and `handleSyncErrors` to customize the experience for your users.
 
 Here are the global defaults:
 ```js
 const config = {
-  filter: {}, // optionally filter which documents to keep across all collections
+  filter: { deleted: false }, // filter which documents to keep across all collections. Recommended: use soft deletes, if you're using a different flag for your soft deletes, you'll want to change this.
   sort: { updatedAt: -1 }, // keep the most recent documents assuming you have an updatedAt on each doc. if you're using a different field name for timestamps, you'll want to change this.
   limit: 100, // limit offline documents to a max of 100 for each collection. technically indexeddb can handle significantly more than this so you'll need to determine what works best for your app.
   keepAll: true, // keep data for offline use for all collections using the global filter, sort, limit. to keep data for only certain collections, set this to false and then use collection.keep() for the collections you want to use offline.

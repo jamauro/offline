@@ -1,3 +1,9 @@
+## 0.3.0
+* feat: use persisted data when navigating app offline
+* feat: support soft delete to improve reconciliation and prevent zombie documents
+* feat: support for `jam:soft-delete` to make soft deletes easy
+* fix: pausing and resuming observers
+
 ## 0.2.3
 * fix: queueing method unintentionally
 

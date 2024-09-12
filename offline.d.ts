@@ -4,7 +4,7 @@ declare module 'meteor/mongo' {
       /**
        * Keeps a filter, sort, and limit configuration for the MongoDB collection.
        *
-       * @param filter - The optional filter object to keep.
+       * @param filter - The optional filter object to keep. Defaults to Offline.config.filter.
        * @param options - Optional settings.
        * @param options.sort - The sort order. Defaults to Offline.config.sort.
        * @param options.limit - The limit of documents. Defaults to Offline.config.limit.
@@ -52,7 +52,6 @@ export async function queueMethod(name: string, ...args: any[]): Promise<void>;
  */
 export declare function isSyncing(): boolean;
 
-
 /**
  * Configuration options for offline data management.
  */
@@ -61,12 +60,12 @@ export declare const Offline: {
    * The current offline configuration.
    */
   config: {
-    filter?: Record<string, any>;    // Criteria to filter data
-    sort?: Record<string, any>;      // Criteria to sort data
-    limit?: number;                  // Maximum number of items
-    keepAll?: boolean;               // Whether to keep all items
-    autoSync?: boolean;              // Whether to sync automatically
-    handleSyncErrors?: (options: {  // Function to handle sync errors
+    filter?: Record<string, any>;    // Filter criteria for data
+    sort?: Record<string, any>;      // Sorting options. Default is sorting by `updatedAt` in descending order
+    limit?: number;                  // Maximum number of items to keep. Default is 100
+    keepAll?: boolean;               // Keep all collections for offline use. Default is `true`
+    autoSync?: boolean;              // Automatically sync data when coming back online. Default is `true`
+    handleSyncErrors?: (options: {   // Function to handle sync errors
       replayErrors?: any[];
       keepErrors?: { name: string }[];
     }) => void;
