@@ -24,13 +24,13 @@ const Notes = new Mongo.Collection('notes');
 Notes.keep({}, { limit: 2 });
 
 const Dogs = new Mongo.Collection('dogs');
-Dogs.keep();
+Dogs.keep({});
 
 const Cars = new Mongo.Collection('cars');
-Cars.keep();
+Cars.keep({});
 
 const Orders = new Mongo.Collection('orders', { idGeneration: 'MONGO' });
-Orders.keep();
+Orders.keep({});
 
 const Items = new Mongo.Collection('items');
 Items.keep({}, { sort: { updatedAt: 1 }, limit: 2 });
@@ -119,7 +119,7 @@ const upsertDog = async ({ _id, text }) => {
 }
 
 const updateDog = async ({ _id, text }) => {
-  return Dogs.updateAsync(_id, { $set: { text,  createdAt: new Date(), updatedAt: new Date() }});
+  return Dogs.updateAsync(_id, { $set: { text, createdAt: new Date(), updatedAt: new Date() }});
 }
 
 const insertCar = async ({ text }) => {
@@ -436,9 +436,8 @@ if (Meteor.isClient) {
       sub = Meteor.subscribe('notes');
     });
 
-
     const note1 = await Meteor.callAsync('insertNote', {text: 'hi'});
-    const note2 = await Meteor.callAsync('insertNote', {text: 'hi'});
+    const note2 = await Meteor.callAsync('insertNote', {text: 'sup'});
 
     Meteor.disconnect();
     await wait(100);
@@ -451,12 +450,12 @@ if (Meteor.isClient) {
 
     Meteor.reconnect();
 
-    await wait(10);
+    await wait(100);
 
     const notes = await getAll('notes');
 
-    test.isFalse(notes.map(n => n._id).includes(note3)) // it should be swapped with the result of the queued method
-    test.isTrue(!notes.map(n => n._id).includes(note1))
+    test.isFalse(notes.map(n => n._id).includes(note3)); // it should be swapped with the result of the queued method
+    test.isTrue(!notes.map(n => n._id).includes(note1));
 
     test.equal(Notes.find().fetch().length, 3)
     test.isTrue(Notes.find().fetch().map(n => n.text).includes('hello'))
@@ -478,17 +477,16 @@ if (Meteor.isClient) {
     });
 
     const dog1 = await Meteor.callAsync('insertDog', {text: 'hi'});
-    const dog2 = await Meteor.callAsync('insertDog', {text: 'hi'});
+    const dog2 = await Meteor.callAsync('insertDog', {text: 'sup'});
 
     Meteor.disconnect();
     await wait(100);
     const dog3 = Random.id();
     await Meteor.applyAsync('upsertDog', [{_id: dog3, text: 'more'}], { ...applyOptions, noRetry: true });
     await queueMethod('upsertDog', {_id: dog3, text: 'more'})
-
     await wait(200);
     await Meteor.applyAsync('updateDog', [{_id: dog3, text: 'hello'}], { ...applyOptions, noRetry: true });
-    await queueMethod('updateDog', {_id: dog3, text: 'hello'})
+    await queueMethod('updateDog', {_id: dog3, text: 'hello'});
     await wait(100);
 
     Meteor.reconnect();
@@ -496,7 +494,6 @@ if (Meteor.isClient) {
     await wait(10);
 
     const dogs = await getAll('dogs');
-
     test.isTrue(dogs.map(d => d._id).includes(dog3)) // it should be preserved
 
     test.equal(Dogs.find().fetch().length, 3)
@@ -520,7 +517,7 @@ if (Meteor.isClient) {
 
 
     const note1 = await Meteor.callAsync('insertNote', {text: 'hi'});
-    const note2 = await Meteor.callAsync('insertNote', {text: 'hi'});
+    const note2 = await Meteor.callAsync('insertNote', {text: 'sup'});
     const note3 = await Meteor.callAsync('insertNote', {text: 'to remove'});
 
     Meteor.disconnect();
@@ -537,12 +534,12 @@ if (Meteor.isClient) {
 
     Meteor.reconnect();
 
-    await wait(10);
+    await wait(100);
 
     const notes = await getAll('notes');
-
     test.isFalse(notes.map(n => n._id).includes(note4)) // it should be swapped with the result of the queued method
-    test.isTrue(!notes.map(n => n._id).includes(note1))
+    test.isTrue(notes.map(n => n._id).includes(note1))
+    test.isTrue(!notes.map(n => n._id).includes(note3))
 
     test.equal(Notes.find().fetch().length, 3)
     test.isTrue(Notes.find().fetch().map(n => n.text).includes('another'))
@@ -582,7 +579,7 @@ if (Meteor.isClient) {
 
     Meteor.reconnect();
 
-    await wait(10);
+    await wait(100);
 
     const orders = await getAll('orders');
 
@@ -596,34 +593,6 @@ if (Meteor.isClient) {
 
     sub.stop();
     comp.stop();
-  });
-
-  Tinytest.add('canQueue', function (test) {
-    const originalConfig = Offline.config;
-    const originalOfflineCollections = offlineCollections;
-    // Test case 1: Offline.config.keepAll is true
-    Offline.config = { keepAll: true };
-    test.isTrue(canQueue('insertTask'), 'Should queue method when keepAll is true');
-
-    // Test case 2: Offline.config.keepAll is false, matching collection name
-    Offline.config = { keepAll: false };
-    offlineCollections.set('tasks', true);
-    test.isTrue(canQueue('insertTask'));
-
-    // Test case 3: Offline.config.keepAll is false, matching singular collection name
-    offlineCollections.clear(); // Clear previous collections
-    offlineCollections.set('tasks', true);
-    test.isTrue(canQueue('insertTasks'));
-
-    // Test case 4: Offline.config.keepAll is false, no matching collection name
-    offlineCollections.clear(); // Clear previous collections
-    test.isFalse(canQueue('updateUser'));
-
-    // return to previous setup
-    Offline.config = originalConfig;
-    for (const [key, value] of originalOfflineCollections) {
-      offlineCollections.set(key, value);
-    }
   });
 
   Tinytest.addAsync('methods are not queued when queueMethod is not used', async (test) => {
@@ -656,6 +625,34 @@ if (Meteor.isClient) {
 
     sub.stop();
     comp.stop();
+  });
+
+  Tinytest.add('canQueue', function (test) {
+    const originalConfig = Offline.config;
+    const originalOfflineCollections = offlineCollections;
+    // Test case 1: Offline.config.keepAll is true
+    Offline.configure({ keepAll: true });
+    test.isTrue(canQueue('insertTask'), 'Should queue method when keepAll is true');
+
+    // Test case 2: Offline.config.keepAll is false, matching collection name
+    Offline.configure({ keepAll: false });
+    offlineCollections.set('tasks', true);
+    test.isTrue(canQueue('insertTask'));
+
+    // Test case 3: Offline.config.keepAll is false, matching singular collection name
+    offlineCollections.clear(); // Clear previous collections
+    offlineCollections.set('tasks', true);
+    test.isTrue(canQueue('insertTasks'));
+
+    // Test case 4: Offline.config.keepAll is false, no matching collection name
+    offlineCollections.clear(); // Clear previous collections
+    test.isFalse(canQueue('updateUser'));
+
+    // return to previous setup
+    Offline.configure({...originalConfig});
+    for (const [key, value] of originalOfflineCollections) {
+      offlineCollections.set(key, value);
+    }
   });
 }
 

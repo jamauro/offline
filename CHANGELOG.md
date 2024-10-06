@@ -1,3 +1,7 @@
+## 0.3.1
+* fix: loading offline data early in the startup process
+* fix: infinite page reloading when making changes to the offline collections
+
 ## 0.3.0
 * feat: use persisted data when navigating app offline
 * feat: support soft delete to improve reconciliation and prevent zombie documents
