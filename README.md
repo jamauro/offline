@@ -145,3 +145,7 @@ Offline.configure({
 You'll likely want to add a service worker as well to cache your HTML, CSS, Javascript so your users can continue to use the app offline, even if they accidentally click refresh.
 
 Follow these [instructions](https://github.com/jamauro/pwa-kit) to add a service worker and go even further by making it a PWA (progressive web app).
+
+## Support
+
+If you find this package valuable, I hope you'll consider [supporting](https://github.com/sponsors/jamauro) it. :) Maybe you pass on the cost to your client(s) or factor in the time it saved you and your team.
