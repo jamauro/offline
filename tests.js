@@ -189,6 +189,27 @@ if (Meteor.isServer) {
 
 // Client only tests
 if (Meteor.isClient) {
+  const { syncing } = require('./lib/sync');
+
+  Tinytest.add('debug suppression handles missing message', (test) => {
+    const wasSyncing = syncing.get();
+    const originalLog = console.log;
+    let didThrow = false;
+
+    try {
+      console.log = () => {};
+      syncing.set(true);
+      Meteor._debug('debug without message', {});
+    } catch (error) {
+      didThrow = true;
+    } finally {
+      console.log = originalLog;
+      syncing.set(wasSyncing);
+    }
+
+    test.isFalse(didThrow);
+  });
+
   Tinytest.addAsync('keep', async (test) => {
 
     const things = offlineCollections.get('things')
