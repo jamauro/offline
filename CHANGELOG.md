@@ -1,3 +1,6 @@
+## 0.4.2
+* fix: prevent debug suppression from throwing when message is missing
+
 ## 0.4.1
 * fix: DDP message handling due to Meteor internal changes
 
