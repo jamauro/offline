@@ -1,6 +1,7 @@
 // Import Tinytest from the tinytest Meteor package.
 import { Tinytest } from 'meteor/tinytest';
 import { Mongo } from 'meteor/mongo';
+import { MongoID } from 'meteor/mongo-id';
 import { Random } from 'meteor/random';
 import { Tracker } from 'meteor/tracker';
 import { offlineCollections } from './lib/mongo';
@@ -8,7 +9,7 @@ import { Offline, clearAll, queueMethod } from 'meteor/jam:offline';
 import { deepReplace, deepContains } from './lib/utils/shared';
 const { getAll, canQueue, removeWithRetry } = Meteor.isClient && require('./lib/idb');
 
-const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+const wait = ms => new Promise((resolve) => setTimeout(resolve, ms));
 
 const applyOptions = {
   returnStubValue: true,
@@ -49,6 +50,9 @@ Notes.keep({}, { limit: 2 });
 const Dogs = new Mongo.Collection('dogs');
 Dogs.keep({});
 
+const Cats = new Mongo.Collection('cats');
+Cats.keep({});
+
 const Cars = new Mongo.Collection('cars');
 Cars.keep({});
 
@@ -72,6 +76,10 @@ if (Meteor.isServer) {
 
   Meteor.publish('dogs', function() {
     return Dogs.find({});
+  });
+
+  Meteor.publish('cats', function() {
+    return Cats.find({});
   });
 
   Meteor.publish('cars', function() {
@@ -99,6 +107,9 @@ const resetNotes = async () => {
 }
 const resetDogs = async () => {
   return Dogs.removeAsync({});
+}
+const resetCats = async () => {
+  return Cats.removeAsync({});
 }
 const resetCars = async () => {
   return Cars.removeAsync({});
@@ -149,6 +160,22 @@ const removeDog = async ({ _id }) => {
   return Dogs.removeAsync({ _id });
 }
 
+const insertCat = async ({ text, hexString }) => {
+  return Cats.insertAsync({ text, id: new MongoID.ObjectID(hexString), createdAt: new Date(), updatedAt: new Date() });
+}
+
+const upsertCat = async ({ _id, text, hexString }) => {
+  return Cats.upsertAsync(_id, { text, id: new MongoID.ObjectID(hexString), createdAt: new Date(), updatedAt: new Date() });
+}
+
+const updateCat = async ({ _id, text, hexString }) => {
+  return Cats.updateAsync(_id, { $set: { text, id: new MongoID.ObjectID(hexString), createdAt: new Date(), updatedAt: new Date() }});
+}
+
+const removeCat = async ({ _id }) => {
+  return Cats.removeAsync({ _id });
+}
+
 const insertCar = async ({ text }) => {
   return Cars.insertAsync({ text, createdAt: new Date(), updatedAt: new Date() });
 }
@@ -181,10 +208,10 @@ const updateBook = async ({ _id, title }) => {
   return Books.updateAsync(_id, { $set: { title,  createdAt: new Date(), updatedAt: new Date() }});
 }
 
-Meteor.methods({ insertThing, updateThing, insertNote, updateNote, removeNote, insertDog, removeDog, upsertDog, updateDog, insertCar, insertOrder, updateOrder, removeOrder, insertItem, updateItem, insertBook, updateBook });
+Meteor.methods({ insertThing, updateThing, insertNote, updateNote, removeNote, insertDog, removeDog, upsertDog, updateDog, insertCat, removeCat, upsertCat, updateCat, insertCar, insertOrder, updateOrder, removeOrder, insertItem, updateItem, insertBook, updateBook });
 
 if (Meteor.isServer) {
-  Meteor.methods({ resetThings, resetNotes, resetDogs, resetCars, resetOrders, resetItems, resetBooks })
+  Meteor.methods({ resetThings, resetNotes, resetDogs, resetCats, resetCars, resetOrders, resetItems, resetBooks })
 }
 
 // Client only tests
@@ -375,6 +402,47 @@ if (Meteor.isClient) {
     comp.stop();
   });
 
+   Tinytest.addAsync('ObjectID type', async (test) => {
+    await wait(100);
+    await Meteor.callAsync('resetCats');
+    await Cats.clear();
+    await wait(100);
+
+    let sub;
+    const comp = Tracker.autorun(() => {
+      sub = Meteor.subscribe('cats');
+    });
+
+
+    const cat1 = await Meteor.callAsync('insertCat', {text: 'stuff', hexString: '123456789012345678901234'});
+    await wait(100)
+    const cat2 = await Meteor.callAsync('insertCat', {text: 'stuff', hexString: '123412345678901234567890'});
+    await wait(100)
+
+    const cats = await getAll('cats');
+    test.equal(cats.length, 2);
+
+    test.isTrue(cats.map(t => t._id).includes(cat1))
+    test.isTrue(cats.map(t => t._id).includes(cat2))
+
+     test.isTrue(typeof Cats.find({ _id: cat1 }).fetch().map(d => d.id) === 'object')
+
+     const id1 = Cats.find({ _id: cat1 }).fetch()[0].id
+     const id1ToCompare = new MongoID.ObjectID('123456789012345678901234')
+
+     const id2 = Cats.find({ _id: cat2 }).fetch()[0].id
+     const id2ToCompare = new MongoID.ObjectID('123412345678901234567890')
+
+    test.isTrue(id1.equals(id1ToCompare))
+    test.isTrue(id2.equals(id2ToCompare))
+
+
+    await Cats.clear();
+
+    sub.stop();
+    comp.stop();
+  });
+
 
   Tinytest.addAsync('brief disconnect', async (test) => { // these tests can be a little flaky due to timing issues in simulating the methods and reconnecting etc.
     await wait(200);
@@ -438,7 +506,7 @@ if (Meteor.isClient) {
 
     Meteor.reconnect();
 
-    await wait(50);
+    await wait(100);
 
     const notes = await getAll('notes');
 
@@ -478,7 +546,7 @@ if (Meteor.isClient) {
 
     Meteor.reconnect();
 
-    await wait(100);
+    await wait(200);
 
     const notes = await getAll('notes');
 
@@ -522,7 +590,7 @@ if (Meteor.isClient) {
     await wait(10);
 
     const dogs = await getAll('dogs');
-    test.isTrue(dogs.map(d => d._id).includes(dog3)) // it should be preserved
+    test.isTrue(dogs.map(d => d._id).includes(dog3)); // it should be preserved
 
     test.equal(Dogs.find().fetch().length, 3)
     test.isTrue(Dogs.find().fetch().map(d => d.text).includes('hello'))
@@ -562,7 +630,7 @@ if (Meteor.isClient) {
 
     Meteor.reconnect();
 
-    await wait(100);
+    await wait(200);
 
     const notes = await getAll('notes');
     test.isFalse(notes.map(n => n._id).includes(note4)) // it should be swapped with the result of the queued method
@@ -607,7 +675,7 @@ if (Meteor.isClient) {
 
     Meteor.reconnect();
 
-    await wait(100);
+    await wait(200);
 
     const orders = await getAll('orders');
 
